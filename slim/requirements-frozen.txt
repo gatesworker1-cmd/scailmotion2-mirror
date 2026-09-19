@@ -47,7 +47,6 @@ cuda-bindings==12.9.7
 cuda-pathfinder==1.6.0
 cuda-toolkit==12.8.1
 cupy-cuda12x==12.3.0
-cupy-wheel==12.3.0
 cycler==0.12.1
 ddt==1.7.2
 debugpy==1.8.21

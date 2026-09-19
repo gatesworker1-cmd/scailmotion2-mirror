@@ -26,6 +26,7 @@ jobs:
           echo "tag=$T" >> "$GITHUB_OUTPUT"; echo "image=ghcr.io/${{ github.repository_owner }}/scailmotion2-slim" >> "$GITHUB_OUTPUT"
       - name: build
         run: |
+          set -o pipefail
           cd slim
           DOCKER_BUILDKIT=1 docker build --progress=plain -t "${{ steps.tag.outputs.image }}:${{ steps.tag.outputs.tag }}" . 2>&1 | tail -n 60
           docker image ls "${{ steps.tag.outputs.image }}"
