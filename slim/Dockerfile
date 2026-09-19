@@ -15,17 +15,20 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
     && rm -rf /var/lib/apt/lists/* \
     && python3.12 -m venv /opt/venv
 ENV PATH=/opt/venv/bin:/usr/local/cuda/bin:/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin
-# layer 2: torch 2.11.0+cu128 + the CUDA libraries it bundles, pinned exactly
-COPY requirements-torch.txt /tmp/
+# layer 2: the CUDA / cuDNN / NCCL libraries torch's cu128 wheels depend on (+ triton), pinned exactly
+COPY requirements-cuda-libs.txt /tmp/
 RUN pip install --no-cache-dir "pip==24.0" "setuptools==81.0.0" "wheel==0.48.0" "packaging==26.3" \
- && pip install --no-cache-dir --no-deps -r /tmp/requirements-torch.txt --index-url https://download.pytorch.org/whl/cu128 --extra-index-url https://pypi.org/simple
-# layer 3: every other package from the original image, pinned
+ && pip install --no-cache-dir --no-deps -r /tmp/requirements-cuda-libs.txt --index-url https://download.pytorch.org/whl/cu128 --extra-index-url https://pypi.org/simple
+# layer 3: torch 2.11.0+cu128 / torchvision / torchaudio and their small pure-python deps, pinned exactly
+COPY requirements-torch.txt /tmp/
+RUN pip install --no-cache-dir --no-deps -r /tmp/requirements-torch.txt --index-url https://download.pytorch.org/whl/cu128 --extra-index-url https://pypi.org/simple
+# layer 4: every other package from the original image, pinned
 COPY requirements-frozen.txt /tmp/
 # --no-deps: this is a complete freeze of the original environment, replayed as-is (the original carries a declared
 # conflict, cupy 12.3 vs numpy 2.5, that pip's resolver refuses to re-create but that runs fine there)
 RUN pip install --no-cache-dir --no-deps -r /tmp/requirements-frozen.txt --extra-index-url https://download.pytorch.org/whl/cu128 \
  && pip check || true
-# layer 4: ComfyUI v0.25.0 + the custom nodes at the original commits
+# layer 5: ComfyUI v0.25.0 + the custom nodes at the original commits
 COPY nodes.txt clone.sh /tmp/
 RUN bash /tmp/clone.sh
 COPY start.sh /start.sh
