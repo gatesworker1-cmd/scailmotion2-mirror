@@ -20,6 +20,7 @@ jobs:
               echo "== apt python/cuda"; dpkg-query -W -f="\${Package} \${Installed-Size}\n" | sort -k2 -n | tail -25
               echo "== comfy cli"; cat /root/.config/comfy-cli/config.ini 2>/dev/null; ls /root/comfy-cli 2>/dev/null
             } > /out/sizes.txt 2>&1
+            exit 0
           '
       - uses: actions/upload-artifact@v4
         with: { name: dump, path: out/ }
