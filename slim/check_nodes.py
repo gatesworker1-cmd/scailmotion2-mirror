@@ -18,5 +18,7 @@ print("node types registered:", len(info), "| workflow needs", len(NEED), "| mis
 log = open("/tmp/comfy.log").read()
 for line in log.splitlines():
     if "IMPORT FAILED" in line or "Cannot import" in line or "Traceback" in line: print("!!", line[:200])
+failed = [l for l in log.splitlines() if "IMPORT FAILED" in l]
+print("custom nodes that failed to import:", len(failed))
 p.terminate()
-sys.exit(1 if missing else 0)
+sys.exit(1 if (missing or failed) else 0)

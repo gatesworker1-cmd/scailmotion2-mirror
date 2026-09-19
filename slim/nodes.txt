@@ -4,6 +4,5 @@ ComfyUI-Frame-Interpolation https://github.com/Fannovel16/ComfyUI-Frame-Interpol
 ComfyUI-KJNodes https://github.com/kijai/ComfyUI-KJNodes.git 3f20054214fec9f9234fd3841ae6f1e4287948f6
 ComfyUI-Manager https://github.com/ltdrdata/ComfyUI-Manager.git d5992a117ee98663b6e93fb040c1e43ee3b25d68
 ComfyUI-VideoHelperSuite https://github.com/Kosinkadink/ComfyUI-VideoHelperSuite.git 4ee72c065db22c9d96c2427954dc69e7b908444b
-Nvidia_RTX_Nodes_ComfyUI https://github.com/Comfy-Org/Nvidia_RTX_Nodes_ComfyUI.git 892515e3eb9a4920a131a502a047e47adca9eb0d
 comfyui-scail2-infinity https://github.com/collbroGTR/comfyui-scail2-infinity.git 08dcf0d56979fc2238ce8c7716dad6cb7e9c9a89
 rgthree-comfy https://github.com/rgthree/rgthree-comfy.git 6b76ee6f2c5a007710b5a16f97c94330d6ecc871
