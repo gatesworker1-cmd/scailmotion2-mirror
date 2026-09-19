@@ -1,0 +1,35 @@
+# One-off mirror of the pod's Docker image from Docker Hub to GitHub Container Registry.
+# Runs only when started by hand (Actions → mirror scailmotion2 → Run workflow). Nothing runs otherwise.
+# Why: Vast hosts pull the 17 GB image anonymously from Docker Hub, which throttles per address —
+# busy hosts stalled on "Pulling fs layer" and the pod never started (GatesGen, 2026-09-19).
+name: mirror scailmotion2
+on:
+  workflow_dispatch:
+    inputs:
+      tag:
+        description: "Docker Hub tag to mirror"
+        default: "latest"
+permissions:
+  contents: read
+  packages: write
+jobs:
+  mirror:
+    runs-on: ubuntu-latest
+    steps:
+      - name: install crane (copies registry to registry, nothing stored on disk)
+        run: |
+          curl -sSL https://github.com/google/go-containerregistry/releases/download/v0.22.1/go-containerregistry_Linux_x86_64.tar.gz | tar -xz crane
+          sudo mv crane /usr/local/bin/crane
+          crane version
+      - name: log in to ghcr.io with the job's own token
+        run: echo "${{ secrets.GITHUB_TOKEN }}" | crane auth login ghcr.io -u "${{ github.actor }}" --password-stdin
+      - name: copy the image
+        run: |
+          SRC="docker.io/aiorbust/vast-ai-scailmotion2:${{ inputs.tag }}"
+          DST="ghcr.io/${{ github.repository_owner }}/scailmotion2"
+          echo "copying $SRC -> $DST:${{ inputs.tag }}"
+          crane copy "$SRC" "$DST:${{ inputs.tag }}"
+          STAMP=$(date -u +%Y-%m-%d)
+          crane tag "$DST:${{ inputs.tag }}" "$STAMP"
+          echo "also tagged $DST:$STAMP"
+          crane digest "$DST:${{ inputs.tag }}"
