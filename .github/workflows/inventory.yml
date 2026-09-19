@@ -1,0 +1,58 @@
+# Inventory of the current pod image (read-only): what Python/torch/CUDA it has, ComfyUI + every custom
+# node's git commit, which model files it ships, which tools exist. Output = an artifact. Manual only.
+name: inventory scailmotion2
+on:
+  workflow_dispatch:
+    inputs:
+      image:
+        description: "image to inspect"
+        default: "ghcr.io/gatesworker1-cmd/scailmotion2:2026-09-19"
+jobs:
+  inventory:
+    runs-on: ubuntu-latest
+    steps:
+      - name: free disk (the image unpacks to ~35 GB)
+        run: |
+          sudo rm -rf /usr/share/dotnet /usr/local/lib/android /opt/ghc /opt/hostedtoolcache/CodeQL /usr/local/share/boost "$AGENT_TOOLSDIRECTORY" 2>/dev/null || true
+          sudo docker image prune -af >/dev/null 2>&1 || true
+          df -h / | tail -1
+      - name: pull
+        run: |
+          time docker pull "${{ inputs.image }}"
+          df -h / | tail -1
+      - name: image metadata
+        run: |
+          mkdir -p out
+          docker history --no-trunc --format '{{.Size}}\t{{.CreatedBy}}' "${{ inputs.image }}" > out/history.tsv
+          docker inspect "${{ inputs.image }}" > out/inspect.json
+          docker image ls "${{ inputs.image }}" --format '{{.Size}}' > out/size.txt
+      - name: inside the image
+        run: |
+          docker run --rm --entrypoint bash -v "$PWD/out:/out" "${{ inputs.image }}" -c '
+            set +e
+            exec > /out/inside.txt 2>&1
+            echo "=== os"; cat /etc/os-release | head -3; uname -m
+            echo "=== python"; which python python3 pip; python --version; python3 --version; pip --version
+            echo "=== cuda env"; env | grep -i "cuda\|nvidia\|torch\|comfy\|path=" | sort
+            echo "=== torch"; python -c "import torch,sys;print(\"torch\",torch.__version__,\"cuda\",torch.version.cuda,\"cudnn\",torch.backends.cudnn.version())"
+            python -c "import torchvision;print(\"torchvision\",torchvision.__version__)" ; python -c "import torchaudio;print(\"torchaudio\",torchaudio.__version__)"
+            python -c "import xformers;print(\"xformers\",xformers.__version__)"; python -c "import triton;print(\"triton\",triton.__version__)"
+            python -c "import sageattention,importlib.metadata as m;print(\"sageattention\",m.version(\"sageattention\"))"
+            echo "=== pip freeze"; pip freeze
+            echo "=== comfyui"; ls /ComfyUI | head -40; git -C /ComfyUI rev-parse HEAD; git -C /ComfyUI remote get-url origin; git -C /ComfyUI log -1 --format="%cd %s"
+            echo "=== custom nodes"; for d in /ComfyUI/custom_nodes/*/; do echo "$d | $(git -C "$d" rev-parse HEAD 2>&1 | head -1) | $(git -C "$d" remote get-url origin 2>/dev/null) | $(git -C "$d" log -1 --format=%cd 2>/dev/null)"; done
+            echo "=== custom node requirements"; for d in /ComfyUI/custom_nodes/*/; do [ -f "$d/requirements.txt" ] && { echo "--- $d"; cat "$d/requirements.txt"; }; done
+            echo "=== models (files)"; find /ComfyUI/models -type f -printf "%s\t%p\n" 2>/dev/null | sort -k2
+            echo "=== models du"; du -sh /ComfyUI/models/* 2>/dev/null
+            echo "=== other big dirs"; du -xsh /ComfyUI /opt /usr/local /root /workspace /venv /venv* 2>/dev/null; du -xsh / 2>/dev/null
+            echo "=== tools"; for t in jupyter-lab jupyter rclone ffmpeg ffprobe curl unzip git wget nvidia-smi; do printf "%s: " "$t"; which "$t" 2>/dev/null || echo MISSING; done
+            ffmpeg -version 2>/dev/null | head -1
+            echo "=== entry files"; ls -la / | head -40; ls /workspace 2>/dev/null | head; cat /start.sh /onstart.sh /root/onstart.sh 2>/dev/null | head -80
+            echo "=== apt (count + notable)"; dpkg -l | wc -l; dpkg -l | grep -i "cuda\|cudnn\|nvidia\|ffmpeg\|python3\.\|libgl\|libglib" | awk "{print \$2, \$3}"
+            echo "=== extra pip site"; python -c "import site,sys;print(sys.prefix);print(site.getsitepackages())"
+          '
+          ls -la out; head -c 3000 out/inside.txt
+      - uses: actions/upload-artifact@v4
+        with:
+          name: inventory
+          path: out/
