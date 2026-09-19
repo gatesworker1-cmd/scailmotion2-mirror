@@ -1,0 +1,25 @@
+name: dump scailmotion2 extras
+on:
+  workflow_dispatch:
+jobs:
+  dump:
+    runs-on: ubuntu-latest
+    steps:
+      - run: sudo rm -rf /usr/share/dotnet /usr/local/lib/android /opt/ghc /opt/hostedtoolcache/CodeQL "$AGENT_TOOLSDIRECTORY" 2>/dev/null || true
+      - run: docker pull ghcr.io/gatesworker1-cmd/scailmotion2:2026-09-19 >/dev/null
+      - run: |
+          mkdir -p out
+          docker run --rm --entrypoint bash -v "$PWD/out:/out" ghcr.io/gatesworker1-cmd/scailmotion2:2026-09-19 -c '
+            cp /start.sh /out/start.sh; cp /opt/nvidia/nvidia_entrypoint.sh /out/ 2>/dev/null; ls /opt/nvidia/entrypoint.d > /out/entrypoint.d.txt 2>/dev/null
+            { echo "== /ComfyUI/*"; du -sh /ComfyUI/* /ComfyUI/.git 2>/dev/null | sort -h | tail -15
+              echo "== custom_nodes/*"; du -sh /ComfyUI/custom_nodes/* 2>/dev/null | sort -h
+              echo "== site-packages top"; du -sh /opt/venv/lib/python3.12/site-packages/* 2>/dev/null | sort -h | tail -30
+              echo "== /root"; du -ah /root 2>/dev/null | sort -h | tail -10
+              echo "== /opt"; du -sh /opt/* 2>/dev/null
+              echo "== /usr/local"; du -sh /usr/local/* 2>/dev/null | sort -h | tail -8
+              echo "== apt python/cuda"; dpkg-query -W -f="${Package} ${Installed-Size}\n" | sort -k2 -n | tail -25
+              echo "== comfy cli"; cat /root/.config/comfy-cli/config.ini 2>/dev/null; ls /root/comfy-cli 2>/dev/null
+            } > /out/sizes.txt 2>&1
+          '
+      - uses: actions/upload-artifact@v4
+        with: { name: dump, path: out/ }
