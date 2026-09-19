@@ -1,0 +1,59 @@
+# Builds the slim pod image from slim/Dockerfile, checks it, pushes it to GHCR. Manual only.
+name: build scailmotion2-slim
+on:
+  workflow_dispatch:
+    inputs:
+      tag:
+        description: "tag (date)"
+        default: ""
+permissions:
+  contents: read
+  packages: write
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: free disk
+        run: |
+          sudo rm -rf /usr/share/dotnet /usr/local/lib/android /opt/ghc /opt/hostedtoolcache/CodeQL /usr/local/share/boost "$AGENT_TOOLSDIRECTORY" 2>/dev/null || true
+          sudo docker image prune -af >/dev/null 2>&1 || true
+          df -h / | tail -1
+      - name: tag
+        id: tag
+        run: |
+          T="${{ inputs.tag }}"; [ -n "$T" ] || T=$(date -u +%Y-%m-%d)
+          echo "tag=$T" >> "$GITHUB_OUTPUT"; echo "image=ghcr.io/${{ github.repository_owner }}/scailmotion2-slim" >> "$GITHUB_OUTPUT"
+      - name: build
+        run: |
+          cd slim
+          DOCKER_BUILDKIT=1 docker build --progress=plain -t "${{ steps.tag.outputs.image }}:${{ steps.tag.outputs.tag }}" . 2>&1 | tail -n 60
+          docker image ls "${{ steps.tag.outputs.image }}"
+          df -h / | tail -1
+      - name: check inside the image (versions, tools, every workflow node type registered)
+        run: |
+          IMG="${{ steps.tag.outputs.image }}:${{ steps.tag.outputs.tag }}"
+          docker run --rm --entrypoint bash -v "$PWD/slim/check_nodes.py:/check_nodes.py:ro" "$IMG" -c '
+            set -e
+            echo "== python"; which python python3 pip; python --version; pip --version
+            echo "== torch"; python -c "import torch,torchvision,torchaudio,triton;print(torch.__version__,torchvision.__version__,torchaudio.__version__,\"triton\",triton.__version__,\"cudnn\",torch.backends.cudnn.version())"
+            echo "== tools"; for t in jupyter-lab rclone ffmpeg ffprobe curl unzip git g++ nvidia-smi; do printf "%s: " "$t"; which "$t" 2>/dev/null || echo MISSING; done; ffmpeg -version | head -1
+            echo "== comfy"; git -C /ComfyUI rev-parse HEAD; for d in /ComfyUI/custom_nodes/*/; do echo "$d $(git -C "$d" rev-parse HEAD)"; done
+            echo "== models dir"; find /ComfyUI/models -type f ! -name "put_*" | wc -l
+            echo "== pip count"; pip freeze | wc -l
+            echo "== node check"; python /check_nodes.py
+          '
+      - name: push
+        run: |
+          echo "${{ secrets.GITHUB_TOKEN }}" | docker login ghcr.io -u "${{ github.actor }}" --password-stdin
+          IMG="${{ steps.tag.outputs.image }}"; T="${{ steps.tag.outputs.tag }}"
+          docker tag "$IMG:$T" "$IMG:latest"
+          docker push "$IMG:$T"; docker push "$IMG:latest"
+      - name: layer sizes (compressed, what a Vast host downloads)
+        run: |
+          IMG="${{ steps.tag.outputs.image }}:${{ steps.tag.outputs.tag }}"
+          docker manifest inspect "$IMG" | python3 -c "
+          import json,sys; m=json.load(sys.stdin); L=m.get('layers') or m['manifests']
+          tot=0
+          for l in L: tot+=l['size']; print(round(l['size']/1e9,2),'GB', l['digest'][:19])
+          print('TOTAL compressed', round(tot/1e9,2), 'GB in', len(L), 'layers')"
