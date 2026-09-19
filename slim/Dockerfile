@@ -18,10 +18,13 @@ ENV PATH=/opt/venv/bin:/usr/local/cuda/bin:/usr/local/sbin:/usr/local/bin:/usr/s
 # layer 2: torch 2.11.0+cu128 + the CUDA libraries it bundles, pinned exactly
 COPY requirements-torch.txt /tmp/
 RUN pip install --no-cache-dir "pip==24.0" "setuptools==81.0.0" "wheel==0.48.0" "packaging==26.3" \
- && pip install --no-cache-dir -r /tmp/requirements-torch.txt --index-url https://download.pytorch.org/whl/cu128 --extra-index-url https://pypi.org/simple
+ && pip install --no-cache-dir --no-deps -r /tmp/requirements-torch.txt --index-url https://download.pytorch.org/whl/cu128 --extra-index-url https://pypi.org/simple
 # layer 3: every other package from the original image, pinned
 COPY requirements-frozen.txt /tmp/
-RUN pip install --no-cache-dir -r /tmp/requirements-frozen.txt --extra-index-url https://download.pytorch.org/whl/cu128
+# --no-deps: this is a complete freeze of the original environment, replayed as-is (the original carries a declared
+# conflict, cupy 12.3 vs numpy 2.5, that pip's resolver refuses to re-create but that runs fine there)
+RUN pip install --no-cache-dir --no-deps -r /tmp/requirements-frozen.txt --extra-index-url https://download.pytorch.org/whl/cu128 \
+ && pip check || true
 # layer 4: ComfyUI v0.25.0 + the custom nodes at the original commits
 COPY nodes.txt clone.sh /tmp/
 RUN bash /tmp/clone.sh
