@@ -1,0 +1,28 @@
+name: dump2 scailmotion2 runtime facts
+on:
+  workflow_dispatch:
+jobs:
+  dump2:
+    runs-on: ubuntu-latest
+    steps:
+      - run: sudo rm -rf /usr/share/dotnet /usr/local/lib/android /opt/ghc /opt/hostedtoolcache/CodeQL "$AGENT_TOOLSDIRECTORY" 2>/dev/null || true
+      - run: docker pull ghcr.io/gatesworker1-cmd/scailmotion2:2026-09-19 >/dev/null
+      - run: |
+          mkdir -p out
+          docker run --rm --entrypoint bash -v "$PWD/out:/out" ghcr.io/gatesworker1-cmd/scailmotion2:2026-09-19 -c '
+            exec > /out/facts.txt 2>&1
+            echo "== /ComfyUI/user"; find /ComfyUI/user -type f 2>/dev/null | head -40; for f in /ComfyUI/user/default/comfy.settings.json /ComfyUI/extra_model_paths.yaml; do echo "--- $f"; cat "$f" 2>/dev/null || echo "(absent)"; done
+            echo "== node config files"; find /ComfyUI/custom_nodes -maxdepth 2 -type f \( -name "*.json" -o -name "*.ini" -o -name "*.yaml" -o -name "*.yml" -o -name "*.cfg" \) ! -path "*/web/*" ! -path "*/node_modules/*" ! -name "package*.json" ! -name "pyproject*" 2>/dev/null | head -40
+            echo "== shell env files"; cat /etc/environment 2>/dev/null; ls /etc/profile.d 2>/dev/null; grep -h "export\|LD_\|CUDA\|PYTORCH" /root/.bashrc /root/.profile /etc/profile.d/*.sh 2>/dev/null | head -20
+            echo "== ld.so.conf.d"; cat /etc/ld.so.conf.d/* 2>/dev/null
+            echo "== ldconfig cuda-ish (what a dlopen by soname finds in the ORIGINAL)"; ldconfig -p | grep -i "cudnn\|cublas\|cudart\|nccl\|tcmalloc\|nvrtc\|cusparse\|cufft\|cusolver\|curand" | head -40
+            echo "== system cuda libs"; ls -la /usr/local/cuda/lib64 2>/dev/null | grep -i "cudart\|cublas\|cudnn\|nvrtc" | head; ls -la /usr/lib/x86_64-linux-gnu | grep -i "cudnn\|cublas" | head
+            echo "== sha256 of the pip CUDA libs"; cd /opt/venv/lib/python3.12/site-packages/nvidia && for f in cudnn/lib/libcudnn.so.9 cudnn/lib/libcudnn_engines_precompiled.so.9 cublas/lib/libcublas.so.12 cublas/lib/libcublasLt.so.12 cuda_runtime/lib/libcudart.so.12 nccl/lib/libnccl.so.2 cuda_nvrtc/lib/libnvrtc.so.12 cusparselt/lib/libcusparseLt.so.0; do printf "%s  %s\n" "$(sha256sum "$f" 2>/dev/null | cut -c1-16)" "$f"; done; cd /
+            echo "== sha256 torch/triton"; for f in /opt/venv/lib/python3.12/site-packages/torch/lib/libtorch_cuda.so /opt/venv/lib/python3.12/site-packages/torch/lib/libc10_cuda.so /opt/venv/lib/python3.12/site-packages/triton/_C/libtriton.so; do printf "%s  %s\n" "$(sha256sum "$f" 2>/dev/null | cut -c1-16)" "$f"; done
+            echo "== pip nvidia versions"; pip list 2>/dev/null | grep -i "nvidia\|triton\|torch\|cupy\|onnx"
+            echo "== ComfyUI quick import test (CPU): which custom nodes fail here"; cd /ComfyUI && timeout 300 python main.py --cpu --quick-test-for-ci 2>&1 | grep -i "import failed\|cannot import\|import times\|seconds" | head -30
+            echo "== torch cuda build flags"; python -c "import torch; print(torch.__config__.show())" 2>/dev/null | head -30
+            exit 0
+          '
+      - uses: actions/upload-artifact@v4
+        with: { name: dump2, path: out/ }
