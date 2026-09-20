@@ -15,10 +15,27 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
     && rm -rf /var/lib/apt/lists/* \
     && python3.12 -m venv /opt/venv
 ENV PATH=/opt/venv/bin:/usr/local/cuda/bin:/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin
-# layer 2: the CUDA / cuDNN / NCCL libraries torch's cu128 wheels depend on (+ triton), pinned exactly
-COPY requirements-cuda-libs.txt /tmp/
-RUN pip install --no-cache-dir "pip==24.0" "setuptools==81.0.0" "wheel==0.48.0" "packaging==26.3" \
- && pip install --no-cache-dir --no-deps -r /tmp/requirements-cuda-libs.txt --index-url https://download.pytorch.org/whl/cu128 --extra-index-url https://pypi.org/simple
+# layer 2: the CUDA / cuDNN / NCCL libraries torch's cu128 wheels depend on (+ triton), pinned exactly — ONE
+# LAYER PER PACKAGE (2026-09-21): as a single 3.74 GB layer the download kept dropping on a Vast host and restarted
+# from zero each time; per package the biggest piece is one wheel, well under 1 GB, and a drop costs one piece
+RUN pip install --no-cache-dir "pip==24.0" "setuptools==81.0.0" "wheel==0.48.0" "packaging==26.3"
+RUN pip install --no-cache-dir --no-deps "nvidia-cublas-cu12==12.8.4.1" --index-url https://download.pytorch.org/whl/cu128 --extra-index-url https://pypi.org/simple
+RUN pip install --no-cache-dir --no-deps "nvidia-cuda-cupti-cu12==12.8.90" --index-url https://download.pytorch.org/whl/cu128 --extra-index-url https://pypi.org/simple
+RUN pip install --no-cache-dir --no-deps "nvidia-cuda-nvrtc-cu12==12.8.93" --index-url https://download.pytorch.org/whl/cu128 --extra-index-url https://pypi.org/simple
+RUN pip install --no-cache-dir --no-deps "nvidia-cuda-runtime-cu12==12.8.90" --index-url https://download.pytorch.org/whl/cu128 --extra-index-url https://pypi.org/simple
+RUN pip install --no-cache-dir --no-deps "nvidia-cudnn-cu12==9.19.0.56" --index-url https://download.pytorch.org/whl/cu128 --extra-index-url https://pypi.org/simple
+RUN pip install --no-cache-dir --no-deps "nvidia-cufft-cu12==11.3.3.83" --index-url https://download.pytorch.org/whl/cu128 --extra-index-url https://pypi.org/simple
+RUN pip install --no-cache-dir --no-deps "nvidia-cufile-cu12==1.13.1.3" --index-url https://download.pytorch.org/whl/cu128 --extra-index-url https://pypi.org/simple
+RUN pip install --no-cache-dir --no-deps "nvidia-curand-cu12==10.3.9.90" --index-url https://download.pytorch.org/whl/cu128 --extra-index-url https://pypi.org/simple
+RUN pip install --no-cache-dir --no-deps "nvidia-cusolver-cu12==11.7.3.90" --index-url https://download.pytorch.org/whl/cu128 --extra-index-url https://pypi.org/simple
+RUN pip install --no-cache-dir --no-deps "nvidia-cusparse-cu12==12.5.8.93" --index-url https://download.pytorch.org/whl/cu128 --extra-index-url https://pypi.org/simple
+RUN pip install --no-cache-dir --no-deps "nvidia-cusparselt-cu12==0.7.1" --index-url https://download.pytorch.org/whl/cu128 --extra-index-url https://pypi.org/simple
+RUN pip install --no-cache-dir --no-deps "nvidia-nccl-cu12==2.28.9" --index-url https://download.pytorch.org/whl/cu128 --extra-index-url https://pypi.org/simple
+RUN pip install --no-cache-dir --no-deps "nvidia-nvjitlink-cu12==12.8.93" --index-url https://download.pytorch.org/whl/cu128 --extra-index-url https://pypi.org/simple
+RUN pip install --no-cache-dir --no-deps "nvidia-nvshmem-cu12==3.4.5" --index-url https://download.pytorch.org/whl/cu128 --extra-index-url https://pypi.org/simple
+RUN pip install --no-cache-dir --no-deps "nvidia-nvtx-cu12==12.8.90" --index-url https://download.pytorch.org/whl/cu128 --extra-index-url https://pypi.org/simple
+RUN pip install --no-cache-dir --no-deps "nvidia-vfx==0.1.0.1" --index-url https://download.pytorch.org/whl/cu128 --extra-index-url https://pypi.org/simple
+RUN pip install --no-cache-dir --no-deps "triton==3.6.0" --index-url https://download.pytorch.org/whl/cu128 --extra-index-url https://pypi.org/simple
 # layer 3: torch 2.11.0+cu128 / torchvision / torchaudio and their small pure-python deps, pinned exactly
 COPY requirements-torch.txt /tmp/
 RUN pip install --no-cache-dir --no-deps -r /tmp/requirements-torch.txt --index-url https://download.pytorch.org/whl/cu128 --extra-index-url https://pypi.org/simple

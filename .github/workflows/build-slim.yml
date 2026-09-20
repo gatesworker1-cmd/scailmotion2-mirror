@@ -56,5 +56,9 @@ jobs:
           docker manifest inspect "$IMG" | python3 -c "
           import json,sys; m=json.load(sys.stdin); L=m.get('layers') or m['manifests']
           tot=0
-          for l in L: tot+=l['size']; print(round(l['size']/1e9,2),'GB', l['digest'][:19])
-          print('TOTAL compressed', round(tot/1e9,2), 'GB in', len(L), 'layers')"
+          big=[]
+          for l in L:
+              tot+=l['size']; print(round(l['size']/1e9,2),'GB', l['digest'][:19])
+              if l['size'] > 1.1e9: big.append(l['digest'][:19])
+          print('TOTAL compressed', round(tot/1e9,2), 'GB in', len(L), 'layers')
+          if big: print('LAYER OVER 1.1 GB:', big); sys.exit(1)"
