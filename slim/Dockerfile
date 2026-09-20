@@ -38,7 +38,6 @@ RUN pip install --no-cache-dir --no-deps "nvidia-nccl-cu12==2.28.9" --index-url 
 RUN pip install --no-cache-dir --no-deps "nvidia-nvjitlink-cu12==12.8.93" --index-url https://download.pytorch.org/whl/cu128
 RUN pip install --no-cache-dir --no-deps "nvidia-nvshmem-cu12==3.4.5" --index-url https://download.pytorch.org/whl/cu128
 RUN pip install --no-cache-dir --no-deps "nvidia-nvtx-cu12==12.8.90" --index-url https://download.pytorch.org/whl/cu128
-RUN pip install --no-cache-dir --no-deps "nvidia-vfx==0.1.0.1" --index-url https://download.pytorch.org/whl/cu128
 RUN pip install --no-cache-dir --no-deps "triton==3.6.0" --index-url https://download.pytorch.org/whl/cu128
 # layer 3: torch 2.11.0+cu128 / torchvision / torchaudio and their small pure-python deps, pinned exactly
 COPY requirements-torch.txt /tmp/
