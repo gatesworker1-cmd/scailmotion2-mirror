@@ -6,11 +6,12 @@
 # download in parallel and keep what they already have.
 FROM nvidia/cuda:12.8.1-base-ubuntu24.04
 ENV DEBIAN_FRONTEND=noninteractive PIP_PREFER_BINARY=1 PYTHONUNBUFFERED=1 SHELL=/bin/bash \
-    NVIDIA_DRIVER_CAPABILITIES=compute,utility,video
+    NVIDIA_DRIVER_CAPABILITIES=compute,utility CMAKE_BUILD_PARALLEL_LEVEL=8 \
+    LD_LIBRARY_PATH=/usr/local/cuda/lib64 LIBRARY_PATH=/usr/local/cuda/lib64/stubs
 # layer 1: OS bits the start script and the nodes rely on (python 3.12, ffmpeg 6.1, rclone, unzip, a C++ compiler for torch.compile)
 RUN apt-get update && apt-get install -y --no-install-recommends \
       python3.12 python3.12-venv python3.12-dev python3-pip git curl wget unzip ca-certificates openssh-server \
-      ffmpeg libgl1 libglib2.0-0 libsm6 libxext6 libxrender1 libgomp1 build-essential \
+      ffmpeg libgl1 libglib2.0-0 libsm6 libxext6 libxrender1 libgomp1 build-essential libgoogle-perftools-dev \
     && curl -fsSL https://rclone.org/install.sh | bash \
     && rm -rf /var/lib/apt/lists/* \
     && python3.12 -m venv /opt/venv
@@ -51,7 +52,7 @@ RUN pip install --no-cache-dir --no-deps -r /tmp/requirements-pip-c.txt --extra-
 COPY nodes.txt clone.sh /tmp/
 RUN bash /tmp/clone.sh
 COPY start.sh /start.sh
-RUN chmod +x /start.sh && mkdir -p /var/log && ln -sf /opt/venv/bin/python /usr/local/bin/python
+RUN chmod +x /start.sh && mkdir -p /var/log /ComfyUI/user/__manager && touch /ComfyUI/user/__manager/channels.list && ln -sf /opt/venv/bin/python /usr/local/bin/python
 WORKDIR /
 EXPOSE 22 8188 8888
 CMD ["/start.sh"]
