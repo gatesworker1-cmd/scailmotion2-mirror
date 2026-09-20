@@ -7,7 +7,8 @@
 FROM nvidia/cuda:12.8.1-base-ubuntu24.04
 ENV DEBIAN_FRONTEND=noninteractive PIP_PREFER_BINARY=1 PYTHONUNBUFFERED=1 SHELL=/bin/bash \
     NVIDIA_DRIVER_CAPABILITIES=compute,utility CMAKE_BUILD_PARALLEL_LEVEL=8 \
-    LD_LIBRARY_PATH=/usr/local/cuda/lib64 LIBRARY_PATH=/usr/local/cuda/lib64/stubs
+    LD_LIBRARY_PATH=/usr/local/cuda/lib64 LIBRARY_PATH=/usr/local/cuda/lib64/stubs \
+    PYTORCH_CUDA_ALLOC_CONF=expandable_segments:True
 # layer 1: OS bits the start script and the nodes rely on (python 3.12, ffmpeg 6.1, rclone, unzip, a C++ compiler for torch.compile)
 RUN apt-get update && apt-get install -y --no-install-recommends \
       python3.12 python3.12-venv python3.12-dev python3-pip git curl wget unzip ca-certificates openssh-server \
@@ -17,6 +18,9 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
     && python3.12 -m venv /opt/venv
 ENV PATH=/opt/venv/bin:/usr/local/cuda/bin:/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin
 # layer 2: the CUDA / cuDNN / NCCL libraries torch's cu128 wheels depend on (+ triton), pinned exactly — ONE
+# 2026-09-21c: PYTORCH_CUDA_ALLOC_CONF=expandable_segments:True baked in at the Content chat's request. NOTE the original
+# does NOT set it, and ComfyUI appends backend:cudaMallocAsync (cuda_malloc.py) — under that backend expandable_segments
+# is parsed but unused; it only takes effect if ComfyUI is started with --disable-cuda-malloc (pod-start.sh, not this image).
 # LAYER PER PACKAGE (2026-09-21), from the PyTorch index ONLY (2026-09-21b): triton 3.6.0 exists on PyPI too with a
 # different build (libtriton sha256 28daaa70… vs the original's 7a785408… from download.pytorch.org) and pip took PyPI's;
 # the original image got every one of these from the PyTorch index. Same for the nvidia-* libraries.

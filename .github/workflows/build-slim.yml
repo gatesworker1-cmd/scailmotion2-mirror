@@ -47,7 +47,7 @@ jobs:
             WANT="94f44e2e8fb2d4bc 5192b64e6a1c5916 031ce6c2cbfbb946 10b5e6631cf8115c c3a75b33af334a34 1792291e26d2b27f 43731e24cd89e374 b3d85a0311eadfd3 2aa4ad61474d40f1 0e54b1db72ce1999 7a785408ccd36cbf"
             GOT=$(cd /opt/venv/lib/python3.12/site-packages && for f in nvidia/cudnn/lib/libcudnn.so.9 nvidia/cudnn/lib/libcudnn_engines_precompiled.so.9 nvidia/cublas/lib/libcublas.so.12 nvidia/cublas/lib/libcublasLt.so.12 nvidia/cuda_runtime/lib/libcudart.so.12 nvidia/nccl/lib/libnccl.so.2 nvidia/cuda_nvrtc/lib/libnvrtc.so.12 nvidia/cusparselt/lib/libcusparseLt.so.0 torch/lib/libtorch_cuda.so torch/lib/libc10_cuda.so triton/_C/libtriton.so; do sha256sum "$f" | cut -c1-16; done | tr "\n" " " | sed "s/ $//")
             [ "$GOT" = "$WANT" ] && echo "CUDA/torch/triton libraries: IDENTICAL to the original" || { echo "LIBRARY MISMATCH"; exit 1; }
-            echo "== env + ldconfig parity"; env | grep -i "cuda\|nvidia\|LD_\|LIBRARY_PATH\|CMAKE"; ldconfig -p | grep -c tcmalloc; for t in gcc g++ nvcc; do printf "%s: " "$t"; which "$t" 2>/dev/null || echo MISSING; done
+            echo "== env + ldconfig parity"; env | grep -i "cuda\|nvidia\|LD_\|LIBRARY_PATH\|CMAKE\|PYTORCH"; ldconfig -p | grep -c tcmalloc; for t in gcc g++ nvcc; do printf "%s: " "$t"; which "$t" 2>/dev/null || echo MISSING; done
             echo "== node check"; python /check_nodes.py
           '
       - name: push as :candidate (the size guard below decides whether it gets the real tag)
