@@ -39,11 +39,13 @@ RUN pip install --no-cache-dir --no-deps "triton==3.6.0" --index-url https://dow
 # layer 3: torch 2.11.0+cu128 / torchvision / torchaudio and their small pure-python deps, pinned exactly
 COPY requirements-torch.txt /tmp/
 RUN pip install --no-cache-dir --no-deps -r /tmp/requirements-torch.txt --index-url https://download.pytorch.org/whl/cu128 --extra-index-url https://pypi.org/simple
-# layer 4: every other package from the original image, pinned
-COPY requirements-frozen.txt /tmp/
+# layers 4a-4c: every other package from the original image, pinned, in three groups so no layer is near 1 GB
 # --no-deps: this is a complete freeze of the original environment, replayed as-is (the original carries a declared
 # conflict, cupy 12.3 vs numpy 2.5, that pip's resolver refuses to re-create but that runs fine there)
-RUN pip install --no-cache-dir --no-deps -r /tmp/requirements-frozen.txt --extra-index-url https://download.pytorch.org/whl/cu128 \
+COPY requirements-pip-a.txt requirements-pip-b.txt requirements-pip-c.txt /tmp/
+RUN pip install --no-cache-dir --no-deps -r /tmp/requirements-pip-a.txt --extra-index-url https://download.pytorch.org/whl/cu128
+RUN pip install --no-cache-dir --no-deps -r /tmp/requirements-pip-b.txt --extra-index-url https://download.pytorch.org/whl/cu128
+RUN pip install --no-cache-dir --no-deps -r /tmp/requirements-pip-c.txt --extra-index-url https://download.pytorch.org/whl/cu128 \
  && pip check || true
 # layer 5: ComfyUI v0.25.0 + the custom nodes at the original commits
 COPY nodes.txt clone.sh /tmp/

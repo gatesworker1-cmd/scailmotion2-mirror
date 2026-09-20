@@ -1,0 +1,11 @@
+cupy-cuda12x==12.3.0
+diffusers==0.39.0
+jupyterlab==4.6.3
+matplotlib==3.11.1
+onnxruntime==1.29.0
+onnxruntime-gpu==1.26.0
+opencv-contrib-python==5.0.0.93
+opencv-python==5.0.0.93
+opencv-python-headless==5.0.0.93
+scipy==1.18.0
+transformers==5.15.0

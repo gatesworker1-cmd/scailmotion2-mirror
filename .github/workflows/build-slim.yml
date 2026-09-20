@@ -44,21 +44,23 @@ jobs:
             echo "== pip count"; pip freeze | wc -l
             echo "== node check"; python /check_nodes.py
           '
-      - name: push
+      - name: push as :candidate (the size guard below decides whether it gets the real tag)
         run: |
           echo "${{ secrets.GITHUB_TOKEN }}" | docker login ghcr.io -u "${{ github.actor }}" --password-stdin
           IMG="${{ steps.tag.outputs.image }}"; T="${{ steps.tag.outputs.tag }}"
-          docker tag "$IMG:$T" "$IMG:latest"
-          docker push "$IMG:$T"; docker push "$IMG:latest"
-      - name: layer sizes (compressed, what a Vast host downloads)
+          docker tag "$IMG:$T" "$IMG:candidate"; docker push "$IMG:candidate"
+      - name: layer sizes (compressed, what a Vast host downloads) — fail if any layer is over 1.1 GB
         run: |
-          IMG="${{ steps.tag.outputs.image }}:${{ steps.tag.outputs.tag }}"
+          IMG="${{ steps.tag.outputs.image }}:candidate"
           docker manifest inspect "$IMG" | python3 -c "
           import json,sys; m=json.load(sys.stdin); L=m.get('layers') or m['manifests']
-          tot=0
-          big=[]
+          tot=0; big=[]
           for l in L:
               tot+=l['size']; print(round(l['size']/1e9,2),'GB', l['digest'][:19])
               if l['size'] > 1.1e9: big.append(l['digest'][:19])
           print('TOTAL compressed', round(tot/1e9,2), 'GB in', len(L), 'layers')
           if big: print('LAYER OVER 1.1 GB:', big); sys.exit(1)"
+      - name: publish the real tag (+ latest)
+        run: |
+          IMG="${{ steps.tag.outputs.image }}"; T="${{ steps.tag.outputs.tag }}"
+          docker push "$IMG:$T"; docker tag "$IMG:$T" "$IMG:latest"; docker push "$IMG:latest"

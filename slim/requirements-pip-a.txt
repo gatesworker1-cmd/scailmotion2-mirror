@@ -1,0 +1,8 @@
+comfyui-embedded-docs==0.5.4
+comfyui-workflow-templates-core==0.3.255
+comfyui-workflow-templates-media-api==0.3.80
+comfyui-workflow-templates-media-image==0.3.152
+comfyui-workflow-templates-media-other==0.3.220
+comfyui-workflow-templates-media-video==0.3.92
+comfyui_frontend_package==1.45.15
+comfyui_workflow_templates==0.10.0
