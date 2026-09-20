@@ -1,0 +1,24 @@
+name: cupy check (both images)
+on:
+  workflow_dispatch:
+jobs:
+  check:
+    runs-on: ubuntu-latest
+    strategy:
+      matrix:
+        image: ["ghcr.io/gatesworker1-cmd/scailmotion2:2026-09-19", "ghcr.io/gatesworker1-cmd/scailmotion2-slim:2026-09-21b"]
+    steps:
+      - run: sudo rm -rf /usr/share/dotnet /usr/local/lib/android /opt/ghc /opt/hostedtoolcache/CodeQL "$AGENT_TOOLSDIRECTORY" 2>/dev/null || true
+      - run: docker pull "${{ matrix.image }}" >/dev/null
+      - run: |
+          docker run --rm --entrypoint bash "${{ matrix.image }}" -c '
+            echo "IMAGE ${{ matrix.image }}"
+            echo "== import cupy"; python -c "import cupy; print(\"cupy OK\", cupy.__version__)" 2>&1 | tail -3
+            echo "== import numpy"; python -c "import numpy; print(\"numpy\", numpy.__version__)"
+            echo "== who mentions cupy (custom nodes)"; grep -rln "cupy" /ComfyUI/custom_nodes --include=*.py 2>/dev/null | sed "s#/ComfyUI/custom_nodes/##"
+            echo "== cupy import lines outside Frame-Interpolation"; grep -rn "import cupy\|from cupy" /ComfyUI/custom_nodes --include=*.py 2>/dev/null | grep -v Frame-Interpolation | head -10
+            echo "== cupy in ComfyUI core"; grep -rln "cupy" /ComfyUI/comfy /ComfyUI/comfy_extras /ComfyUI/nodes.py 2>/dev/null | head
+            echo "== Frame-Interpolation: is cupy imported at node load?"; grep -n "cupy" /ComfyUI/custom_nodes/ComfyUI-Frame-Interpolation/__init__.py /ComfyUI/custom_nodes/ComfyUI-Frame-Interpolation/vfi_utils.py 2>/dev/null | head -8
+            echo "== channels.list"; cat /ComfyUI/user/__manager/channels.list 2>/dev/null | head -3
+            exit 0
+          '
