@@ -1,0 +1,22 @@
+name: dump3 scailmotion2 compilers
+on:
+  workflow_dispatch:
+jobs:
+  dump3:
+    runs-on: ubuntu-latest
+    steps:
+      - run: sudo rm -rf /usr/share/dotnet /usr/local/lib/android /opt/ghc /opt/hostedtoolcache/CodeQL "$AGENT_TOOLSDIRECTORY" 2>/dev/null || true
+      - run: docker pull ghcr.io/gatesworker1-cmd/scailmotion2:2026-09-19 >/dev/null
+      - run: |
+          mkdir -p out
+          docker run --rm --entrypoint bash -v "$PWD/out:/out" ghcr.io/gatesworker1-cmd/scailmotion2:2026-09-19 -c '
+            exec > /out/compilers.txt 2>&1
+            echo "== compilers"; for t in gcc cc g++ c++ nvcc make cmake ninja; do printf "%s: " "$t"; which "$t" 2>/dev/null || echo MISSING; done; gcc --version 2>/dev/null | head -1; nvcc --version 2>/dev/null | tail -2
+            echo "== relevant apt packages"; dpkg -l | awk "/^ii/ {print \$2\" \"\$3}" | grep -i "^gcc\|^g++\|build-essential\|libtcmalloc\|google-perftools\|python3.12-dev\|libpython3.12\|^cpp\|binutils" | head -20
+            echo "== python headers"; ls /usr/include/python3.12/Python.h 2>/dev/null || echo "no Python.h"
+            echo "== triton launcher build needs"; python -c "import triton, os; from triton.runtime import build; print(triton.__version__); import inspect; src=inspect.getsource(build); print([l.strip() for l in src.splitlines() if \"cc\" in l.lower() and (\"which\" in l or \"environ\" in l or \"gcc\" in l or \"clang\" in l)][:8])" 2>&1 | head -12
+            echo "== ALL env"; env | sort
+            exit 0
+          '
+      - uses: actions/upload-artifact@v4
+        with: { name: dump3, path: out/ }
